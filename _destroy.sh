@@ -9,7 +9,7 @@ do
 	read -p "Do you wish to delete all files in the bucket ${BUCKET} (yes/no)? " choice
 	case "$choice" in 
 	  yes ) 
-			gsutil rm "gs://${BUCKET}/**"
+			gsutil -m rm "gs://${BUCKET}/**"
 			;;
 	  no ) 
 			exit;;
