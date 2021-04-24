@@ -53,6 +53,9 @@ resource "google_cloud_run_service" "cloud_run_service" {
 
   template {
     spec {
+      # container can only handle one request at a time
+      container_concurrency = 1
+
       containers {
         image = local.image_uri
 
