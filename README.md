@@ -6,6 +6,8 @@
 
 ## Overview
 
+(A more detailed version is available on my [blog](https://blog.telsemeyer.com/2021/04/24/building-a-serverless-containerized-batch-prediction-model-using-google-cloud-run-pub-sub-cloud-storage-and-terraform/).)
+
 We will build a serverless service which will listen to new files in a Cloud Storage bucket via Pub/Sub, run some small containzerized process via Cloud Run once files are available and publish results of the process to another bucket.
 
 As a process here we will run a simple time series forecasting model (facebook's [prophet](https://facebook.github.io/prophet/)). Alternatively you could also run batch-predictions using a trained model artifact or an external model service, for example to to classify images or videos, or run a simple script to generate some plots.
