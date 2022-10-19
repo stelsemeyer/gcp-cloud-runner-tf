@@ -5,10 +5,11 @@ import pandas as pd
 import logging
 
 from flask import Flask, request
+from app.model import forecast
 from model import forecast
 
 
-OUTPUT_BUCKET = os.environ.get("OUTPUT_BUCKET").replace("gs://", "")
+OUTPUT_BUCKET = os.environ.get("OUTPUT").replace("gs://", "")
 
 
 log = logging.getLogger()
@@ -44,12 +45,13 @@ def index():
 
     input_file = f"gs://{bucket}/{name}"
     log.info(f"Input file: {input_file}")
-    input_df = pd.read_csv(input_file)
+    df = pd.read_csv(input_file)
 
-    output_df = forecast(input_df)
+    output = forecast(df)
 
     output_file = f"gs://{OUTPUT_BUCKET}/{name}"
     log.info(f"Output file: {output_file}")
-    output_df.to_csv(output_file, index=False)
+    output.to_csv(output_file, index=False)
 
     return ("", 204)
+    #return ('buy or sell with balanced accuracy',output_df )

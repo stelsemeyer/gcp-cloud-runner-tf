@@ -3,8 +3,9 @@ provider "google" {
   region  = local.region
 }
 
-data "google_project" "project" {
-}
+# data "google_project" "project" {
+#   project_id  = "${var.project_id}"
+# }
 
 
 data "google_billing_account" "account" {
@@ -19,7 +20,7 @@ resource "google_project" "project" {
 }
 
 resource "google_project_iam_member" "project_owner" {
-  project       = "${var.project_id}"
+  project = local.project
   role   = "roles/owner"
   member = "user:${var.user}"
 
@@ -38,7 +39,7 @@ resource "google_storage_bucket" "storage_input_bucket" {
 
 resource "google_storage_bucket" "storage_output_bucket" {
   name = local.output_bucket
- location= local.region
+  location= local.region
   depends_on = [
     google_project_iam_member.project_owner,
   ]
@@ -72,7 +73,7 @@ resource "google_cloud_run_service" "default" {
         }
 
         env {
-          name  = "OUTPUT_BUCKET"
+          name  = "OUTPUT"
           value = google_storage_bucket.storage_output_bucket.url
         }
       }
@@ -102,10 +103,23 @@ resource "null_resource" "app_container" {
   ]
 }
 
+# resource "null_resource" "app_container" {
+#   provisioner "remote-exec" {
+#   inline = ["sudo apt -y install nginx"]
+#   connection {
+#     type        = "ssh"
+#     user        = "${var.user}"
+#     host        = "localhost"
+#     timeout     = "500s"
+#     private_key = "${file("/Users/raghad.alnouri/.ssh/id_rsa")}"
+#   }
+
+#     }
+# }
 resource "google_service_account" "service_account" {
-  account_id   = "stocksaccountid"
-  display_name = "stocks-service-account"
-  project = "${var.project_id}"
+  account_id   = "cloud-runneraccountid"
+  display_name = "cloud-runner-service-account"
+  project = local.project
   depends_on = [
     google_project_iam_member.project_owner,
   ]
@@ -187,7 +201,7 @@ resource "google_pubsub_subscription" "subscription" {
 
 # service account for cloud run to work properly
 resource "google_project_iam_binding" "project" {
-  project     = "${var.project_id}"
+  project = local.project
   role = "roles/iam.serviceAccountTokenCreator"
   members = [
     "serviceAccount:service-${google_project.project.number}@gcp-sa-pubsub.iam.gserviceaccount.com",
