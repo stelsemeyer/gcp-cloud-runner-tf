@@ -1,31 +1,39 @@
 import logging
 import pandas as pd
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import balanced_accuracy_score
 
-from fbprophet import Prophet
 
 
 log = logging.getLogger()
+def balanced_acc(data):
+	def split(dataframe, border):
+		return dataframe.loc[:border], dataframe.loc[border:]
 
-
-def forecast(df: pd.DataFrame, periods=28) -> pd.DataFrame:
 	log.info("Processing input.")
+	data_train, data_test = split(data, "2022-05-31")
+	data_test = data_test.iloc[1:, :]
+	X_train = data_train.iloc[:, [1, -3]].values
+	y_train = data_train.iloc[:, -1].values
+	X_test = data_test.iloc[:, [1, -3]].values
+	y_test = data_test.iloc[:, -1].values
 
-	df.columns = [col.lower() for col in df.columns]
-
-	# rename according to prophets naming convention
-	data = df.rename({"date": "ds"}, axis=1)
-	data["ds"] = pd.to_datetime(data["ds"])
 
 	log.info("Fitting model.")
-	model = Prophet()
-	model.fit(data)
+
+	logisticRegr = LogisticRegression()
+	logisticRegr.fit(X_train, y_train)
 
 	log.info("Computing predictions.")
-	future_df = model.make_future_dataframe(periods=periods, include_history=False)
-	forecast_df = model.predict(future_df)
+	y_pred = logisticRegr.predict(X_test)
 
-	log.info("Processing output.")
-	forecast_df = forecast_df.rename({"ds": "date", "yhat": "prediction"}, axis=1)
-	forecast_df = forecast_df[["date", "prediction"]]
+	def return_balanced_acc(test,predicted):
+		balanced_acc = balanced_accuracy_score(test, predicted)
+		print("The balanced accuracy is {}.".format(balanced_acc))
 
-	return forecast_df
+	log.info("Processing output.")   
+	balanced_acc = return_balanced_acc(y_test,y_pred)
+	return balanced_acc
+
+
+
