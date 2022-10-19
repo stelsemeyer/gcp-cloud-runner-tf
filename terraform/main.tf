@@ -3,6 +3,10 @@ provider "google" {
   region  = local.region
 }
 
+data "google_project" "project" {
+}
+
+
 data "google_billing_account" "account" {
   # this needs to be the literal name
   display_name = var.billing_account_name
@@ -15,6 +19,7 @@ resource "google_project" "project" {
 }
 
 resource "google_project_iam_member" "project_owner" {
+  project       = "${var.project_id}"
   role   = "roles/owner"
   member = "user:${var.user}"
 
@@ -25,7 +30,7 @@ resource "google_project_iam_member" "project_owner" {
 
 resource "google_storage_bucket" "storage_input_bucket" {
   name = local.input_bucket
-
+  location= local.region
   depends_on = [
     google_project_iam_member.project_owner,
   ]
@@ -33,7 +38,7 @@ resource "google_storage_bucket" "storage_input_bucket" {
 
 resource "google_storage_bucket" "storage_output_bucket" {
   name = local.output_bucket
-
+ location= local.region
   depends_on = [
     google_project_iam_member.project_owner,
   ]
@@ -47,7 +52,7 @@ resource "google_project_service" "cloud_run_service" {
   ]
 }
 
-resource "google_cloud_run_service" "cloud_run_service" {
+resource "google_cloud_run_service" "default" {
   name     = local.service_name
   location = local.region
 
@@ -98,16 +103,17 @@ resource "null_resource" "app_container" {
 }
 
 resource "google_service_account" "service_account" {
-  account_id = "cloud-runner-service-account"
-
+  account_id   = "stocksaccountid"
+  display_name = "stocks-service-account"
+  project = "${var.project_id}"
   depends_on = [
     google_project_iam_member.project_owner,
   ]
 }
 
 resource "google_cloud_run_service_iam_member" "iam_member" {
-  service  = google_cloud_run_service.cloud_run_service.name
-  location = google_cloud_run_service.cloud_run_service.location
+  service  = google_cloud_run_service.default.name
+  location = google_cloud_run_service.default.location
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.service_account.email}"
 }
@@ -115,7 +121,7 @@ resource "google_cloud_run_service_iam_member" "iam_member" {
 resource "google_storage_notification" "storage_notification" {
   bucket         = google_storage_bucket.storage_input_bucket.name
   payload_format = "JSON_API_V1"
-  topic          = google_pubsub_topic.pubsub_topic.id
+  topic          = google_pubsub_topic.topic.id
   # only watch out for new objects being successfully created
   event_types = ["OBJECT_FINALIZE"]
 
@@ -132,27 +138,27 @@ data "google_storage_project_service_account" "gcs_account" {
 }
 
 resource "google_pubsub_topic_iam_binding" "iam_binding" {
-  topic   = google_pubsub_topic.pubsub_topic.id
+  topic   = google_pubsub_topic.topic.id
   role    = "roles/pubsub.publisher"
   members = ["serviceAccount:${data.google_storage_project_service_account.gcs_account.email_address}"]
 
   depends_on = [
-    google_pubsub_topic.pubsub_topic,
+    google_pubsub_topic.topic,
   ]
 }
 // end enabling notifications
 
-resource "google_pubsub_topic" "pubsub_topic" {
-  name = "cloud-runner-topic"
+resource "google_pubsub_topic" "topic" {
+  name = "pubsub_topic"
 
   depends_on = [
     google_project_iam_member.project_owner,
   ]
 }
 
-resource "google_pubsub_subscription" "pubsub_subcription" {
-  name  = "cloud-runner-subscription"
-  topic = google_pubsub_topic.pubsub_topic.name
+resource "google_pubsub_subscription" "subscription" {
+  name  = "pubsub-subscription"
+  topic = google_pubsub_topic.topic.name
 
   ack_deadline_seconds = 600
 
@@ -162,16 +168,16 @@ resource "google_pubsub_subscription" "pubsub_subcription" {
   }
 
   push_config {
-    push_endpoint = google_cloud_run_service.cloud_run_service.status[0].url
+    push_endpoint = google_cloud_run_service.default.status[0].url
 
     attributes = {
       x-goog-version = "v1"
     }
 
-    # service to service auth, as this is not deployed publicly
-    oidc_token {
-      service_account_email = google_service_account.service_account.email
-    }
+    # # service to service auth, as this is not deployed publicly
+    # oidc_token {
+    #   service_account_email = google_service_account.service_account.email
+    # }
   }
 
   depends_on = [
@@ -181,12 +187,13 @@ resource "google_pubsub_subscription" "pubsub_subcription" {
 
 # service account for cloud run to work properly
 resource "google_project_iam_binding" "project" {
+  project     = "${var.project_id}"
   role = "roles/iam.serviceAccountTokenCreator"
   members = [
     "serviceAccount:service-${google_project.project.number}@gcp-sa-pubsub.iam.gserviceaccount.com",
   ]
 
   depends_on = [
-    google_pubsub_subscription.pubsub_subcription,
+    google_pubsub_subscription.subscription,
   ]
 }
