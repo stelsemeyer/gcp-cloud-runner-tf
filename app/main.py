@@ -49,9 +49,9 @@ def index():
 
     output = forecast(df)
 
-    output_file = f"gs://{OUTPUT_BUCKET}/{name}"
-    log.info(f"Output file: {output_file}")
-    output.to_csv(output_file, index=False)
+    #output_file = f"gs://{OUTPUT_BUCKET}/{name}"
+    log.info(f"Output : {output}")
+    #output.to_csv(output_file, index=False)
 
     return ("", 204)
     #return ('buy or sell with balanced accuracy',output_df )

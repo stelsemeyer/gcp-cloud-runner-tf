@@ -101,3 +101,14 @@ Run the destroy script `_destroy.sh` to delete(!) the bucket contents and the pr
 ## Remarks
 
 - Cloud Run run has a [maximum timeout](https://cloud.google.com/run/docs/configuring/request-timeout) of 15 minutes, Google Pub/Sub has a [maximum acknowledge time](https://github.com/googleapis/google-cloud-go/issues/608) of 10 minutes, making it useless for more time-consuming tasks. You can use [bigger resources](https://cloud.google.com/run/docs/configuring/cpu#yaml) though to speed up the processing time.
+
+
+We can upload the test file app/data/hyndsight.csv to GCS using gsutil. We will fetch input and output bucket name from the terraform output and extract them using jq:
+
+'''
+
+INPUT_BUCKET=$(cd terraform && terraform output -json | jq -r .input_bucket.value)
+OUTPUT_BUCKET=$(cd terraform && terraform output -json | jq -r .output_bucket.value)
+gsutil cp app/data/financial_statements.csv gs://${INPUT_BUCKET}/financial_statements.csv
+
+'''
