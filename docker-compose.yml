@@ -1,0 +1,8 @@
+version: '3.4'
+
+services:
+  gcpcloudrunnertf:
+    image: gcpcloudrunnertf
+    build:
+      context: .
+      dockerfile: ./Dockerfile

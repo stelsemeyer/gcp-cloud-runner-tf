@@ -1,0 +1,60 @@
+"""
+this script can be use to download all data for SNP 500
+"""
+
+import yahoofinancials 
+from yahoofinancials import YahooFinancials as yf
+from yahoofinancials import stock_info as si
+import logging
+import warnings
+import datetime as dt
+import pandas as pd
+import numpy as np
+from pathlib import Path
+
+
+
+# log = logging.getLogger()
+# data_dir = Path('data')
+
+
+num_of_years = 1
+start = dt.date.today() - dt.timedelta(days = int(365.25*num_of_years))
+start = start.strftime('%Y-%m-%d')
+end = dt.date.today()
+end = end.strftime('%Y-%m-%d')
+
+tickers = si.tickers_sp500()
+
+
+
+print('Attempting to scrape data  ')
+
+df = yf(tickers).get_historical_price_data(start_date=start, end_date=end, time_interval='daily')
+  
+
+stockList = list(df.keys())
+FEATURES = ['formatted_date','high', 'low', 'open', 'close', 'volume'] 
+for i in stockList:
+        df[i] = pd.DataFrame(df[i]['prices'], columns = FEATURES)#.dropna()
+        df[i] = df[i].set_index('formatted_date')
+
+for i in stockList:
+    for lag in range(0,5):
+        df[i][f'lag_{lag}'] = df[i]['close'].shift(lag)
+        df[i]['next'] = df[i]['close'].shift(-1)
+
+def tagger(row):
+    if row['next']<row['lag_0']:
+        return '1' #"buy"
+    else:
+        return '0' #sell
+
+for i in stockList:
+    df[i]['ticker'] = i
+    df[i]['target'] = df[i].apply(tagger ,axis=1)
+
+for i in stockList:
+    df[i]= df[i].dropna(axis=0)
+
+data = pd.concat([df[i] for i in stockList], axis=1).reindex(df['AAPL'].index)
